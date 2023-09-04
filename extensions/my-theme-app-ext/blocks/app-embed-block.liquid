@@ -1,0 +1,104 @@
+<!-- barebone app: app-embed-block.liquid -->
+
+<!--
+See the useful documents.
+
+https://shopify.dev/themes/architecture/sections/app-blocks
+
+https://shopify.dev/apps/online-store/theme-app-extensions/extensions-framework
+
+https://shopify.dev/themes/architecture/settings/input-settings
+
+https://github.com/Shopify/theme-extension-getting-started
+
+--><div class="_my_app_embed_block"> <img
+    src="{{ "barebone.png" | asset_url }}"
+    width="200"
+    height="200"
+    loading="lazy" />
+  <div class="_my_app_embed_block_child">
+    <p>
+      Theme App Extension
+      <a href="https://shopify.dev/apps/online-store/theme-app-extensions/extensions-framework#app-embed-blocks" target="_blank">
+        App Embed Block
+      </a>
+      with
+      <b>"target": "body"</b>
+    </p>
+    <p>
+      in
+      <b>`blocks/app-embed-block.liquid'</b>
+      with the back ground color defined by value of
+      <b>'assets/barebone.css'</b>.
+    </p>
+    <p>
+      <b>&#123;&#123;template.name&#125;&#125;:</b>
+      {{ template.name }}
+    </p>
+    <ul>
+      <li>
+        <b>'block.settings.text'</b>
+        in "Your message":
+        <b>{{ block.settings.text }}</b>
+      </li>
+    </ul>
+  </div>
+</div>
+<!--
+
+"target": "body" or "head" in schema means this is an "App Embed Block" as a theme wide fixed code.
+
+--><script>
+  // Note that you cannot call external functions defined in 'assets/***.js' in <script> of blocks.
+// App embed block is singleton, so this <script> must be inserted one time.
+
+  console.log("blocks/app-embed-block.liquid");
+
+  const shopUrl = '{{shop.secure_url}}';
+
+// Demonstrate how the 1st party cookie can be passed to the app proxy as query.
+  const cookieParam = document.cookie;
+
+// App proxy path for each shop can be edit by merchants, so you need to get the path from config or other way for real apps.
+  const appProxyUrl = `${shopUrl}/apps/bareboneproxy?_1st_party_cookie_sent_by_me=${
+    encodeURIComponent(cookieParam)
+  }`;
+
+  console.log(`Accessing ${appProxyUrl} ...`);
+
+  const httpClient = new XMLHttpRequest();
+  httpClient.open("GET", appProxyUrl, false);
+  httpClient.send(null);
+  const res = JSON.parse(httpClient.responseText);
+  console.log(JSON.stringify(res, null, 4));
+
+  const resList = document.getElementsByClassName("barebone_app_proxy_response");
+  for (let i = 0; i < resList.length; i++) {
+    resList[i].innerHTML = JSON.stringify(res, null, 4);
+  }
+
+  let aList = document.getElementsByClassName("barebone_app_proxy_json");
+  for (let i = 0; i < aList.length; i++) {
+    aList[i].setAttribute('href', `${appProxyUrl}`);
+  }
+  aList = document.getElementsByClassName("barebone_app_proxy_liquid");
+  for (let i = 0; i < aList.length; i++) {
+    aList[i].setAttribute('href', `${appProxyUrl}&format=liquid`);
+  }
+</script>
+{% schema %}
+  {
+    "name": "Barebone App Embed",
+    "target": "body",
+    "stylesheet": "barebone.css",
+    "javascript": "barebone.js",
+    "settings": [
+      {
+        "type": "text",
+        "id": "text",
+        "label": "Your message",
+        "default": "Barebone app embed block message"
+      }
+    ]
+  }
+{% endschema %}

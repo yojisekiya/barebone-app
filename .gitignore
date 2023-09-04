@@ -1,0 +1,7 @@
+node_modules
+package-lock.json
+/.env
+.DS_Store
+/public/assets
+/views/index.html
+/.my_env.sh

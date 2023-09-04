@@ -1,0 +1,34 @@
+type = "web_pixel_extension"
+name = "my-web-pixel-ext"
+
+runtime_context = "strict"
+
+[settings]
+type = "object"
+
+[settings.fields.ga4Id]
+name = "GA4 ID"
+description = "GA4 Measurement ID"
+type = "single_line_text_field"
+validations =  [
+  { name = "min", value = "1" }
+]
+
+[settings.fields.ga4Sec]
+name = "GA4 Secret"
+description = "GA4 API Secret"
+type = "single_line_text_field"
+validations =  [
+  { name = "min", value = "1" }
+]
+
+# See https://shopify.dev/docs/apps/custom-data/metafields/definitions/validation
+[settings.fields.ga4Debug]
+name = "GA4 Debug"
+description = "GA4 debug on or off = true or false"
+type = "single_line_text_field"
+validations =  [
+  { name = "choices", value = "[\"true\", \"false\"]" }
+]
+
+

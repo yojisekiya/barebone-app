@@ -1,0 +1,29 @@
+/*
+You cannot write code like "color: {{block.settings.color}};" with liquid here.
+*/
+
+._my_app_block {
+    border-style: solid;
+    padding: 10px;
+    margin: 10px;
+}
+
+._my_app_block_editor {
+    border-style: dotted;
+}
+
+._my_app_snippet {
+    background-color: #ccffcc; 
+    padding: 10px;  
+}
+
+._my_app_embed_block {
+    position: fixed; bottom: 0; right: 0;
+    background-color: #e4d2a8;    
+}
+
+._my_app_embed_block_child {
+    width:400px;  
+    padding: 10px;
+}
+
