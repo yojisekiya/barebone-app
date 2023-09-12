@@ -22,8 +22,6 @@ const { v4: uuidv4 } = require('uuid'); // For JWT sign
 const router = new Router();
 const app = module.exports = new Koa();
 
-// require('dotenv').config();
-
 app.use(cors()); // For Web Worker sandox access
 
 app.use(bodyParser());
@@ -171,8 +169,6 @@ router.get('/callback', async (ctx, next) => {
     ctx.status = 500;
     return;
   }
-
-  createDBPostgreSQL();
 
   getDB(shop).then(function (shop_data) {
     if (shop_data == null) {
@@ -1733,34 +1729,6 @@ const setDBMongo = function (key, data, collection = MONGO_COLLECTION) {
       });
     }).catch(function (e) {
       console.log(`setDBMongo Error ${e}`);
-      return reject(e);
-    });
-  });
-};
-
-/* --- create a PostgreSQL db --- */
-const createDBPostgreSQL = function () {
-  return new Promise(function (resolve, reject) {
-    const client = new Client({
-      connectionString: POSTGRESQL_URL,
-      // ssl: {
-      //   rejectUnauthorized: false
-      // }
-    });
-    client.connect().then(function () {
-      console.log(`createDBPostgreSQL Connected: ${POSTGRESQL_URL}`);
-      const sql = `CREATE TABLE ${POSTGRESQL_TABLE} ( _id VARCHAR NOT NULL PRIMARY KEY, data json NOT NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL );`;
-      console.log(`createDBPostgreSQL:  ${sql}`);
-      client.query(sql).then(function (res) {
-        client.end();
-        return resolve(0);
-      }).catch(function (e) {
-        client.end();
-        console.log(`createDBPostgreSQL Error ${e}`);
-        return reject(e);
-      });
-    }).catch(function (e) {
-      console.log(`insertDBPostgreSQL Error ${e}`);
       return reject(e);
     });
   });
