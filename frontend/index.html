@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="shopify-api-key" content="bd93d9e70904307ccbb8955579d6254d" />
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" ></script>
     <title>My barebone app sample</title>
   </head>
   <body>
     <div id="root"></div>
+    <div class="something"></div>
+    <!-- <button id="open-picker">Open resource picker</button> -->
+    <!-- <script>
+      document
+        .getElementById('open-picker')
+        .addEventListener('click', async () => {
+          const selected = await shopify.resourcePicker({type: 'product'});
+          console.log(selected);
+        });
+    </script> -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

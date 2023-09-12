@@ -22,6 +22,8 @@ const { v4: uuidv4 } = require('uuid'); // For JWT sign
 const router = new Router();
 const app = module.exports = new Koa();
 
+// require('dotenv').config();
+
 app.use(cors()); // For Web Worker sandox access
 
 app.use(bodyParser());
@@ -82,12 +84,15 @@ const MYSQL_TABLE = 'shops';
 // See https://shopify.dev/apps/tools/app-bridge/updating-overview#ensure-compatibility-with-the-new-shopify-admin-domain
 router.get('/', async (ctx, next) => {
   console.log("+++++++++++++++ / +++++++++++++++");
+  console.log(ctx);
   if (!checkSignature(ctx.request.query)) {
     ctx.status = 400;
     return;
   }
 
   const shop = ctx.request.query.shop;
+
+  console.log(ctx.request);
 
   let shop_data = null;
   let api_res = null;
@@ -118,6 +123,13 @@ router.get('/', async (ctx, next) => {
       const redirectUrl = `https://${shop}/admin/oauth/authorize?client_id=${API_KEY}&scope=${API_SCOPES}&redirect_uri=https://${ctx.request.host}/callback&state=&grant_options[]=`;
       //const redirectUrl = `https://${getAdminFromShop(shop)}/oauth/authorize?client_id=${API_KEY}&scope=${API_SCOPES}&redirect_uri=https://${ctx.request.host}/callback&state=&grant_options[]=`;
       console.log(`Redirecting to ${redirectUrl} for OAuth flow...`);
+      ctx.redirect(redirectUrl);
+      return;
+    } else if (!isEmbedded(ctx)) {
+      // If the app is not embedded, App Bridge and its Session Token cannot be used, so the page should be redirect to the 
+      // external one using its own JWT token, instead of Session Token.
+      const redirectUrl = `/mocklogin?my_token=${createJWT({ "shop": shop })}`;
+      console.log(`Redirecting to ${redirectUrl} for the non embedded app to show the mock login as an external service...`);
       ctx.redirect(redirectUrl);
       return;
     }
@@ -1349,8 +1361,40 @@ router.get('/mocklogin', async (ctx, next) => {
     (try it in <a href="https://jwt.io" target="_blank">jwt.io</a> by copying the text below and change the shop to paste to '?sessiontoken=' above).</p>
     <pre>${token}</pre>
     <ul>
-    <li>For the validation details, see <a href="https://shopify.dev/apps/auth/oauth/session-tokens/getting-started#step-3-decode-session-tokens-for-incoming-requests" target="_blank">this document</a></li>
-    <li>If you don't want to reveal the token in the query, you can use body POST approach with a hidden tag, too</li>
+    <li>For the validation details, see <a href="https://shopify.dev/apps/auth/oauth/session-tokens/getting-started#step-3-decode-session-tokens-for-incoming-requests" target="_blank">this document</a>.</li>
+    <li>If you don't want to reveal the token in the query, you can use body POST approach with a hidden tag, too.</li>
+    </ul>
+    <p><a href="https://${getAdminFromShop(shop)}">Go back to Shopify admin</a></p>`;
+  }
+
+  // If the app is not embedded, the app top URL passes the shop in its own JWT with this paramater. 
+  if (typeof ctx.request.query.my_token !== UNDEFINED) {
+    console.log('My Token given');
+    const token = ctx.request.query.my_token;
+    let decoded_token = null;
+    try {
+      decoded_token = decodeJWT(token);
+    } catch (e) {
+      console.log(`${e}`);
+    }
+    if (decoded_token == null) {
+      ctx.body = { "Error": "Wrong token passed." };
+      ctx.status = 400;
+      return;
+    }
+    console.log(`decoded_token ${JSON.stringify(decoded_token, null, 4)}`);
+
+    const shop = decoded_token.shop;
+
+    target = `<p>You are connecting to: <h3>${shop}</h3></p>`;
+
+    details = `<p><b>The following is the received your own JWT token with the shop which you can never falsify</b> 
+    (try it in <a href="https://jwt.io" target="_blank">jwt.io</a> by copying the text below and change the shop to paste to '?my_token=' above).</p>
+    <pre>${token}</pre>
+    <ul>
+    <li>This is supposed to be used for <b>Non embedded apps</b> which cannot use AppBridge or its Session Token.</li>
+    <li>If you don't want to reveal the token in the query, you can use body POST approach with a hidden tag, too.</li>
+
     </ul>
     <p><a href="https://${getAdminFromShop(shop)}">Go back to Shopify admin</a></p>`;
   }
@@ -1697,12 +1741,12 @@ const insertDBPostgreSQL = function (key, data) {
   return new Promise(function (resolve, reject) {
     const client = new Client({
       connectionString: POSTGRESQL_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
+      // ssl: {
+      //   rejectUnauthorized: false
+      // }
     });
     client.connect().then(function () {
-      //console.log(`insertDBPostgreSQL Connected: ${POSTGRESQL_URL}`);
+      console.log(`insertDBPostgreSQL Connected: ${POSTGRESQL_URL}`);
       const sql = `INSERT INTO ${POSTGRESQL_TABLE} ( _id, data, created_at, updated_at ) VALUES ('${key}', '${JSON.stringify(data).replace(/\\"/g, '\\\\"').replace(/'/g, "\\'")}', '${new Date().toISOString()}',  '${new Date().toISOString()}')`;
       console.log(`insertDBPostgreSQL:  ${sql}`);
       client.query(sql).then(function (res) {
@@ -1726,9 +1770,9 @@ const getDBPostgreSQL = function (key) {
     console.log(`getDBPostgreSQL POSTGRESQL_URL ${POSTGRESQL_URL}`);
     const client = new Client({
       connectionString: POSTGRESQL_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
+      // ssl: {
+      //   rejectUnauthorized: false
+      // }
     });
     client.connect().then(function () {
       //console.log(`getDBPostgreSQL Connected: ${POSTGRESQL_URL}`);
@@ -1755,9 +1799,9 @@ const setDBPostgreSQL = function (key, data) {
   return new Promise(function (resolve, reject) {
     const client = new Client({
       connectionString: POSTGRESQL_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
+      // ssl: {
+      //   rejectUnauthorized: false
+      // }
     });
     client.connect().then(function () {
       //console.log(`setDBPostgreSQL Connected: ${POSTGRESQL_URL}`);

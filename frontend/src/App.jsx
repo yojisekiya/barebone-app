@@ -19,17 +19,18 @@ import WebPixel from './pages/WebPixel';
 import PostPurchase from './pages/PostPurchase';
 import CheckoutUi from './pages/CheckoutUi';
 
-
 import { _getAdminFromShop, _getShopFromQuery } from "./utils/my_util";
 
 // See https://shopify.dev/apps/tools/app-bridge/getting-started/app-setup
 const config = {
   apiKey: API_KEY, // See ../vite.config.js
-  host: new URLSearchParams(window.location.search).get("host"),
+  host: new URLSearchParams(location.search).get("host"),
   forceRedirect: true
   // If false, the page accessed outside admin keeps the location where App Bridge doesn't work.
   // See https://shopify.dev/apps/tools/app-bridge/getting-started/app-setup#initialize-shopify-app-bridge-in-your-app
 };
+
+console.log(config);
 
 // If the page is accessed directly outside the admin unembedded, shop is used for the host.
 // See https://shopify.dev/apps/auth/oauth/getting-started#step-6-redirect-to-your-apps-ui
