@@ -22,6 +22,8 @@ const { v4: uuidv4 } = require('uuid'); // For JWT sign
 const router = new Router();
 const app = module.exports = new Koa();
 
+// require('dotenv').config();
+
 app.use(cors()); // For Web Worker sandox access
 
 app.use(bodyParser());
