@@ -11,12 +11,12 @@ function Index() {
     const redirect = Redirect.create(app);
 
     // Redirect to the external mock service login to connect the current shop and their users by Session Token validation.
-    if (new URLSearchParams(window.location.search).get("external") != null) {
-        getSessionToken(app).then((sessionToken) => {
-            redirect.dispatch(Redirect.Action.REMOTE, `https://${window.location.hostname}/mocklogin?sessiontoken=${sessionToken}`);
-        });
-        return (<span></span>);
-    }
+    // if (new URLSearchParams(window.location.search).get("external") != null) {
+    //     getSessionToken(app).then((sessionToken) => {
+    //         redirect.dispatch(Redirect.Action.REMOTE, `https://${window.location.hostname}/mocklogin?sessiontoken=${sessionToken}`);
+    //     });
+    //     return (<span></span>);
+    // }
 
     return (
         <Page>
@@ -98,6 +98,38 @@ function Index() {
                             },
                             name: 'Checkout UI',
                             location: 'Checkout UI sample with upsell and shop reviews shared with post-purchase server side, and IP address blocking',
+                        },
+                        {
+                            id: 10,
+                            onClick: (id) => {
+                                redirect.dispatch(Redirect.Action.APP, '/ordermanage');
+                            },
+                            name: 'Order Management',
+                            location: 'Order management sameple for fulfillments, transactions and fulfillment services with inventory management',
+                        },
+                        {
+                            id: 11,
+                            onClick: (id) => {
+                                redirect.dispatch(Redirect.Action.APP, '/multipass');
+                            },
+                            name: 'Multipass',
+                            location: 'Multipass sample with dummy SSO',
+                        },
+                        {
+                            id: 12,
+                            onClick: (id) => {
+                                redirect.dispatch(Redirect.Action.APP, '/subscriptions');
+                            },
+                            name: 'Subscriptions',
+                            location: 'Subscriptions app',
+                        },
+                        {
+                            id: 13,
+                            onClick: (id) => {
+                                redirect.dispatch(Redirect.Action.APP, '/bulkoperation');
+                            },
+                            name: 'Bulk Operation',
+                            location: 'Bulk Operation sample for product importing with file uploading',
                         }
                     ]}
                     renderItem={(item) => {

@@ -18,6 +18,10 @@ import FunctionPayment from './pages/FunctionPayment';
 import WebPixel from './pages/WebPixel';
 import PostPurchase from './pages/PostPurchase';
 import CheckoutUi from './pages/CheckoutUi';
+import OrderManage from './pages/OrderManage';
+import Multipass from './pages/Multipass';
+import Subscriptions from './pages/Subscriptions';
+import BulkOperation from './pages/BulkOperation';
 
 import { _getAdminFromShop, _getShopFromQuery } from "./utils/my_util";
 
@@ -87,40 +91,28 @@ function App() {
             destination: '/checkoutui',
           },
           {
-            label: 'Fulfillment',
-            destination: '/fulfillment',
-          },
-          {
-            label: 'Transaction',
-            destination: '/transaction',
-          },
-          {
-            label: 'Metaobject',
-            destination: '/metaobject',
+            label: 'Order management',
+            destination: '/ordermanage',
           },
           {
             label: 'Multipass',
             destination: '/multipass',
           },
           {
-            label: 'B2B',
-            destination: '/b2b',
+            label: 'Fulfillment',
+            destination: '/fulfillment',
           },
           {
             label: 'Bulk Operation',
             destination: '/bulkoperation',
           },
           {
-            label: 'ShopifyQL',
-            destination: '/shopifyql',
+            label: 'Storefront API',
+            destination: '/storefrontapi',
           },
           {
-            label: 'Marketing Activity',
-            destination: '/marketingactivity',
-          },
-          {
-            label: 'Tokengating',
-            destination: '/tokengating',
+            label: 'POS',
+            destination: '/pos',
           },
         ]}
         matcher={(link, location) => link.destination === location.pathname}
@@ -153,6 +145,10 @@ function App() {
             <Route path="/webpixel" element={<WebPixel />} />
             <Route path="/postpurchase" element={<PostPurchase />} />
             <Route path="/checkoutui" element={<CheckoutUi />} />
+            <Route path="/ordermanage" element={<OrderManage />} />
+            <Route path="/multipass" element={<Multipass />} />
+            <Route path="/subscriptions" element={<Subscriptions />} />
+            <Route path="/bulkoperation" element={<BulkOperation />} />
           </Routes>
         </BrowserRouter>
         {/* Each page content comes here */}

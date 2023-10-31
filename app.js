@@ -2,6 +2,7 @@
 
 const Koa = require('koa');
 const cors = require('@koa/cors');
+const { koaBody } = require('koa-body');
 const Router = require('koa-router');
 const bodyParser = require('koa-bodyparser');
 const koaRequest = require('koa-http-request');
@@ -22,7 +23,8 @@ const { v4: uuidv4 } = require('uuid'); // For JWT sign
 const router = new Router();
 const app = module.exports = new Koa();
 
-// require('dotenv').config();
+require('dotenv').config();
+
 
 app.use(cors()); // For Web Worker sandox access
 
@@ -1394,6 +1396,80 @@ router.get('/mocklogin', async (ctx, next) => {
     <ul>
     <li>This is supposed to be used for <b>Non embedded apps</b> which cannot use AppBridge or its Session Token.</li>
     <li>If you don't want to reveal the token in the query, you can use body POST approach with a hidden tag, too.</li>
+    </ul>
+    <p><a href="https://${getAdminFromShop(shop)}">Go back to Shopify admin</a></p>`;
+  }
+
+  ctx.body = `<h1>Welcome to my mock login for my dummy service</h1> 
+      ${target}
+      <p>Your email: <input /></p>
+      <p>Your password: <input /></p>
+      <p><button onClick="javascript:window.location.href='./mocklogin';">Login</button></p>
+      ${details}
+    `;
+
+});
+
+/* --- Mock login for external service connection demo --- */
+// See https://shopify.dev/apps/auth/oauth/session-tokens/getting-started#step-2-authenticate-your-requests
+router.get('/mocklogin', async (ctx, next) => {
+  console.log("------------ mocklogin ------------");
+  console.log(`query ${JSON.stringify(ctx.request.query)}`);
+
+  let target = '';
+  let details = '';
+
+  // Get the shop data from the session token supposed to be passed from AppBridge which can never be falsified.
+  // For productinon code, this endpoint should be POST method to receive the token in the body, not the query.
+  if (typeof ctx.request.query.sessiontoken !== UNDEFINED) {
+    console.log('Session Token given');
+    const token = ctx.request.query.sessiontoken;
+    if (!checkAuthFetchToken(token)[0]) {
+      ctx.body = "Signature unmatched. Incorrect session token sent";
+      ctx.status = 400;
+      return;
+    }
+    const shop = getShopFromAuthToken(token);
+
+    target = `<p>You are connecting to: <h3>${shop}</h3></p>`;
+
+    details = `<p><b>The following is the received session token with the shop data above which you can never falsify</b> 
+    (try it in <a href="https://jwt.io" target="_blank">jwt.io</a> by copying the text below and change the shop to paste to '?sessiontoken=' above).</p>
+    <pre>${token}</pre>
+    <ul>
+    <li>For the validation details, see <a href="https://shopify.dev/apps/auth/oauth/session-tokens/getting-started#step-3-decode-session-tokens-for-incoming-requests" target="_blank">this document</a>.</li>
+    <li>If you don't want to reveal the token in the query, you can use body POST approach with a hidden tag, too.</li>
+    </ul>
+    <p><a href="https://${getAdminFromShop(shop)}">Go back to Shopify admin</a></p>`;
+  }
+
+  // If the app is not embedded, the app top URL passes the shop in its own JWT with this paramater. 
+  if (typeof ctx.request.query.my_token !== UNDEFINED) {
+    console.log('My Token given');
+    const token = ctx.request.query.my_token;
+    let decoded_token = null;
+    try {
+      decoded_token = decodeJWT(token);
+    } catch (e) {
+      console.log(`${e}`);
+    }
+    if (decoded_token == null) {
+      ctx.body = { "Error": "Wrong token passed." };
+      ctx.status = 400;
+      return;
+    }
+    console.log(`decoded_token ${JSON.stringify(decoded_token, null, 4)}`);
+
+    const shop = decoded_token.shop;
+
+    target = `<p>You are connecting to: <h3>${shop}</h3></p>`;
+
+    details = `<p><b>The following is the received your own JWT token with the shop which you can never falsify</b> 
+    (try it in <a href="https://jwt.io" target="_blank">jwt.io</a> by copying the text below and change the shop to paste to '?my_token=' above).</p>
+    <pre>${token}</pre>
+    <ul>
+    <li>This is supposed to be used for <b>Non embedded apps</b> which cannot use AppBridge or its Session Token.</li>
+    <li>If you don't want to reveal the token in the query, you can use body POST approach with a hidden tag, too.</li>
 
     </ul>
     <p><a href="https://${getAdminFromShop(shop)}">Go back to Shopify admin</a></p>`;
@@ -1406,6 +1482,471 @@ router.get('/mocklogin', async (ctx, next) => {
       <p><button onClick="javascript:window.location.href='./mocklogin';">Login</button></p>
       ${details}
     `;
+
+});
+
+/* --- Multipass sample endpoint for admin --- */
+// See https://shopify.dev/docs/api/multipass
+router.get('/multipass', async (ctx, next) => {
+  console.log("+++++++++++++++ /multipass +++++++++++++++");
+
+  // Access by AppBride::authenticatedFetch
+  if (typeof ctx.request.header.authorization !== UNDEFINED) {
+    console.log('Authenticated fetch');
+    const token = getTokenFromAuthHeader(ctx);
+    if (!checkAuthFetchToken(token)[0]) {
+      ctx.body.result.message = "Signature unmatched. Incorrect authentication bearer sent";
+      ctx.status = 400;
+      return;
+    }
+
+    ctx.set('Content-Type', 'application/json');
+    ctx.body = {
+      "result": {
+        "message": "",
+        "response": {}
+      }
+    };
+
+    const shop = getShopFromAuthToken(token);
+    let shop_data = null;
+    try {
+      shop_data = await (getDB(shop));
+      if (shop_data == null) {
+        ctx.body.result.message = "Authorization failed. No shop data";
+        ctx.status = 400;
+        return;
+      }
+    } catch (e) {
+      ctx.body.result.message = "Internal error in retrieving shop data";
+      ctx.status = 500;
+      return;
+    }
+
+    const api_errors = {
+      "errors": 0,
+      "apis": []
+    };
+
+    try {
+      let api_res = await (callGraphql(ctx, shop, `{
+        shop {
+          id
+        }
+      }`, null, GRAPHQL_PATH_ADMIN, null));
+      const id = api_res.data.shop.id;
+      const secret = ctx.request.query.secret;
+      api_res = await (callGraphql(ctx, shop, `mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields {
+            id
+            value
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+      `, null, GRAPHQL_PATH_ADMIN, {
+        "metafields": [
+          {
+            "key": "multipass_secret",
+            "namespace": "barebone_app",
+            "ownerId": id,
+            "type": "single_line_text_field",
+            "value": secret
+          }
+        ]
+      }
+      ));
+      if (api_res.data.metafieldsSet.userErrors.length > 0) {
+        api_errors.errors = api_errors.errors + 1;
+        api_errors.apis.push(`shop ${JSON.stringify(api_res.data.metafieldsSet.userErrors[0])}`);
+      }
+    } catch (e) {
+      console.log(`${JSON.stringify(e)}`);
+      api_errors.errors = api_errors.errors + 1;
+      api_errors.apis.push(`shop ${JSON.stringify(e)}`);
+    }
+
+    // Send the error count.
+    ctx.body.result.response = api_errors;
+    ctx.status = 200;
+    return;
+  }
+
+  if (typeof ctx.request.query.sessiontoken !== UNDEFINED) {
+    console.log('Session Token given');
+    const token = ctx.request.query.sessiontoken;
+    if (!checkAuthFetchToken(token)[0]) {
+      ctx.body = "Signature unmatched. Incorrect session token sent";
+      ctx.status = 400;
+      return;
+    }
+    return await ctx.render('sso', {
+      token: token
+    });
+  }
+
+  if (!checkSignature(ctx.request.query)) {
+    ctx.status = 400;
+    return;
+  }
+  const shop = ctx.request.query.shop;
+  setContentSecurityPolicy(ctx, shop);
+  await ctx.render('index', {});
+
+});
+
+/* --- Multipass sample endpoint for login --- */
+// See https://shopify.dev/docs/api/multipass
+router.post('/multipass', async (ctx, next) => {
+  console.log("+++++++++++++++ /multipass +++++++++++++++");
+  console.log(`body: ${JSON.stringify(ctx.request.body, null, 4)}`);
+
+  const sessiontoken = ctx.request.body.token;
+  if (!checkAuthFetchToken(sessiontoken)[0]) {
+    ctx.body = "Signature unmatched. Incorrect session token sent";
+    ctx.status = 400;
+    return;
+  }
+
+  const shop = getShopFromAuthToken(sessiontoken);
+
+  console.log(`shop ${shop}`);
+
+  const email = ctx.request.body.email;
+  const identifier = ctx.request.body.identifier;
+  const first_name = ctx.request.body.first_name;
+  const last_name = ctx.request.body.last_name;
+  const tag_string = ctx.request.body.tag_string;
+  const remote_ip = ctx.request.body.remote_ip;
+  const return_to = ctx.request.body.return_to;
+
+  const json = {};
+  if (email !== '') json.email = email;
+  if (identifier !== '') json.identifier = identifier;
+  if (first_name !== '') json.first_name = first_name;
+  if (last_name !== '') json.last_name = last_name;
+  if (tag_string !== '') json.tag_string = tag_string;
+  if (remote_ip !== '') json.remote_ip = remote_ip;
+  if (return_to !== '') json.return_to = return_to;
+  json.created_at = new Date().toISOString();
+
+  const api_res = await (callGraphql(ctx, shop, `{
+    shop {
+      id
+      metafield(namespace: "barebone_app", key: "multipass_secret") {
+        id
+        value
+      }
+    }
+  }`, null, GRAPHQL_PATH_ADMIN, null));
+
+  const token = generateMultipassToken(json, api_res.data.shop.metafield.value);
+
+  ctx.redirect(`https://${shop}/account/login/multipass/${token}`);
+});
+
+/* --- fulfillment sample endpoint --- */
+router.get('/fulfillment', async (ctx, next) => {
+  console.log("+++++++++++++++ /fulfillment +++++++++++++++");
+
+  if (!checkSignature(ctx.request.query)) {
+    ctx.status = 400;
+    return;
+  }
+  console.log(`*** ctx *** ${JSON.stringify(ctx)}`);
+  console.log(`*** request *** ${JSON.stringify(ctx.request.body)}`);
+  console.log(`*** response *** ${JSON.stringify(ctx.response.body)}`);
+  const shop = ctx.request.query.shop;
+  setContentSecurityPolicy(ctx, shop);
+  const hello = "Hello World!!"
+  await ctx.render('index', {hello});
+
+});
+
+// Subscription admin link
+// See https://shopify.dev/docs/apps/selling-strategies/subscriptions/contracts/create
+// See https://shopify.dev/docs/apps/selling-strategies/subscriptions/contracts/update
+router.get('/subscriptions', async (ctx, next) => {
+  console.log("+++++++++++++++ /subscriptions +++++++++++++++");
+  console.log(`query ${JSON.stringify(ctx.request.query, null, 4)}`);
+
+  // Access by AppBride::authenticatedFetch
+  if (typeof ctx.request.header.authorization !== UNDEFINED) {
+    console.log('Authenticated fetch');
+    const token = getTokenFromAuthHeader(ctx);
+    if (!checkAuthFetchToken(token)[0]) {
+      ctx.body.result.message = "Signature unmatched. Incorrect authentication bearer sent";
+      ctx.status = 400;
+      return;
+    }
+
+    ctx.set('Content-Type', 'application/json');
+    ctx.body = {
+      "result": {
+        "message": "",
+        "response": {}
+      }
+    };
+
+    const shop = getShopFromAuthToken(token);
+    const id = ctx.request.query.id;
+    const billing = typeof ctx.request.query.billing !== UNDEFINED && ctx.request.query.billing === 'true' ? true : false;
+    const fulfill = typeof ctx.request.query.fulfill !== UNDEFINED && ctx.request.query.fulfill === 'true' ? true : false;
+
+    let shop_data = null;
+    try {
+      shop_data = await (getDB(shop));
+      if (shop_data == null) {
+        ctx.body.result.message = "Authorization failed. No shop data";
+        ctx.status = 400;
+        return;
+      }
+    } catch (e) {
+      ctx.body.result.message = "Internal error in retrieving shop data";
+      ctx.status = 500;
+      return;
+    }
+
+    // Get the subscription contract of the given id.
+    // See https://shopify.dev/docs/api/admin-graphql/unstable/objects/SubscriptionContract
+    const contract_ql = `{
+      subscriptionContract(id: "gid://shopify/SubscriptionContract/${id}"){
+        id
+        billingPolicy {
+          interval
+          intervalCount
+          maxCycles
+          minCycles
+        }
+        customer {
+            id
+            email
+            firstName
+            lastName
+        }
+        customerPaymentMethod {
+            id
+            instrument {
+              ... on CustomerCreditCard {
+                brand
+                maskedNumber
+                name
+                source
+              }
+            }
+        }
+        deliveryMethod {
+          ... on SubscriptionDeliveryMethodShipping {
+            address {
+              address1
+              address2
+              city
+              company
+              country
+              countryCode
+              firstName
+              lastName
+              name
+              phone
+              province
+              provinceCode
+              zip
+            }
+          }
+        }
+        deliveryPolicy {
+            interval
+            intervalCount
+            anchors {
+              cutoffDay
+              day
+              month
+              type
+            }
+        }
+        lastPaymentStatus
+        nextBillingDate
+        status
+        billingAttempts(first: 3, reverse: true) {
+          edges {
+            node {
+              id
+              nextActionUrl
+              createdAt
+              errorCode
+              errorMessage
+              idempotencyKey
+              ready
+            }
+          }
+        }
+        orders(first: 3, reverse: true) {
+          edges {
+            node {
+              id
+              name
+              createdAt
+              fulfillmentOrders(first: 3, reverse: true) {
+                edges {
+                  node {
+                    id
+                    createdAt
+                    status
+                    requestStatus
+                  }
+                }
+              }
+            }
+          }
+        } 
+        lines(first: 3, reverse: true) {
+          edges {
+            node {
+              id
+              title
+              variantTitle
+            }
+          }
+        }                
+      }
+    }
+    `;
+    let ql = contract_ql;
+    // Make a billing attempt to create an order with the given contract above.
+    // See https://shopify.dev/docs/api/admin-graphql/unstable/mutations/subscriptionBillingAttemptCreate
+    if (billing) {
+      ql = `mutation {
+        subscriptionBillingAttemptCreate(
+          subscriptionContractId: "gid://shopify/SubscriptionContract/${id}"
+          subscriptionBillingAttemptInput: {
+            idempotencyKey: "mysub${new Date().getTime()}${(Math.random() * 10 ^ 16) % 16}"
+            originTime: "${new Date().toISOString()}"
+          }
+        )
+        {
+          subscriptionBillingAttempt {
+            id
+            originTime
+            errorCode
+            errorMessage
+            idempotencyKey
+            nextActionUrl
+            order {
+              id
+            }
+            ready
+            subscriptionContract {
+              id
+              orders(first: 3, reverse: true) {
+                edges {
+                  node {
+                    id
+                    name
+                    createdAt
+                    physicalLocation {
+                      id
+                    }
+                    fulfillable
+                    fulfillments (first: 3) {
+                      id
+                      location {
+                        id
+                      }
+                    }
+                    fulfillmentOrders(first: 3, reverse: true) {
+                      edges {
+                        node {
+                          id
+                          createdAt
+                          status
+                          requestStatus
+                        }
+                      }
+                    }
+                  }
+                }
+              } 
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }`;
+    }
+    let api_res = null;
+    try {
+      api_res = await (callGraphql(ctx, shop, ql, null, GRAPHQL_PATH_ADMIN, null));
+      // Ship automatically if checked.
+      if (fulfill) {
+        // Get the latest fullfillment order id with the same query above (the billing attempt mutation response has the old ones only...).
+        // New order creation has some delay, so this demo use dummy delay process (DO NOT THIS FOR REAL PRODUCTION APPS!)
+        const delay = () => { return new Promise((r) => { setTimeout(r, 3 * 1000) }) };
+        console.log(`----- Starting a dummy delay... -----`);
+        await delay();
+        const api_res1 = await (callGraphql(ctx, shop, contract_ql, null, GRAPHQL_PATH_ADMIN, null));
+        const fulfill_order_id = api_res1.data.subscriptionContract.orders.edges[0].node.fulfillmentOrders.edges[0].node.id;
+        // Create a fullfilment of the given  fullfillment order id for automatic shipping.
+        const api_res2 = await (callGraphql(ctx, shop, `mutation fulfillmentCreateV2($fulfillment: FulfillmentV2Input!) {
+          fulfillmentCreateV2(fulfillment: $fulfillment) {
+            fulfillment {
+              id
+              name
+              fulfillmentOrders(first: 3, reverse: true) {
+                edges {
+                  node {
+                    id
+                    createdAt
+                    status
+                    requestStatus
+                  }
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }`, null, GRAPHQL_PATH_ADMIN, {
+          "fulfillment": {
+            "lineItemsByFulfillmentOrder": [
+              {
+                "fulfillmentOrderId": fulfill_order_id
+              }
+            ],
+            "trackingInfo": {
+              "company": "Dummy shipping carrier",
+              "number": "9999999",
+              "url": "https://example.com"
+            }
+          }
+        }));
+        ctx.body.result.response2 = api_res2;
+      }
+    } catch (e) {
+      console.log(`${JSON.stringify(e)}`);
+      ctx.body.result.message = JSON.stringify(e);
+    }
+
+    ctx.body.result.response = api_res;
+    ctx.status = 200;
+    return;
+  }
+
+  if (!checkSignature(ctx.request.query)) {
+    ctx.status = 400;
+    return;
+  }
+
+  const shop = ctx.request.query.shop;
+  setContentSecurityPolicy(ctx, shop);
+  await ctx.render('index', {});
 
 });
 
@@ -1424,6 +1965,42 @@ router.post('/webhookcommon', async (ctx, next) => {
   console.log(`*** body *** ${JSON.stringify(ctx.request.body)}`);
 
   ctx.status = 200;
+});
+
+/* --- ordermanage sample endpoint --- */
+router.get('/ordermanage', async (ctx, next) => {
+  console.log("+++++++++++++++ /ordermanage +++++++++++++++");
+
+  if (!checkSignature(ctx.request.query)) {
+    ctx.status = 400;
+    return;
+  }
+  console.log(`*** ctx *** ${JSON.stringify(ctx)}`);
+  console.log(`*** request *** ${JSON.stringify(ctx.request.body)}`);
+  console.log(`*** response *** ${JSON.stringify(ctx.response.body)}`);
+  const shop = ctx.request.query.shop;
+  setContentSecurityPolicy(ctx, shop);
+  const hello = "Hello World!!"
+  await ctx.render('index', {hello});
+
+});
+
+/* --- bulkoperation sample endpoint --- */
+router.get('/bulkoperation', async (ctx, next) => {
+  console.log("+++++++++++++++ /bulkoperation +++++++++++++++");
+
+  if (!checkSignature(ctx.request.query)) {
+    ctx.status = 400;
+    return;
+  }
+  console.log(`*** ctx *** ${JSON.stringify(ctx)}`);
+  console.log(`*** request *** ${JSON.stringify(ctx.request.body)}`);
+  console.log(`*** response *** ${JSON.stringify(ctx.response.body)}`);
+  const shop = ctx.request.query.shop;
+  setContentSecurityPolicy(ctx, shop);
+  const hello = "Hello World!!"
+  await ctx.render('index', {hello});
+
 });
 
 /* --- Webhook endpoint for  GDPR --- */
@@ -1491,6 +2068,23 @@ const checkWebhookSignature = function (ctx, secret) {
     return resolve(receivedSig === signature ? true : false);
   });
 };
+
+/* --- Generate a token for Multipass with a given customer data and secret --- */
+// See https://shopify.dev/docs/api/multipass
+const generateMultipassToken = function (json, secret) {
+  const json_str = JSON.stringify(json);
+  console.log(`generateMultipassToken json ${json_str} secret ${secret}`);
+  const keyMaterial = crypto.createHash('sha256').update(secret).digest();
+  const encryptionKey = keyMaterial.slice(0, 16);
+  const signatureKey = keyMaterial.slice(16, 32);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-128-cbc', encryptionKey, iv);
+  const cipherText = Buffer.concat([iv, cipher.update(json_str, 'utf8'), cipher.final()]);
+  const signed = crypto.createHmac("SHA256", signatureKey).update(cipherText).digest();
+  const token = Buffer.concat([cipherText, signed]).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+  console.log(`generateMultipassToken token ${token}`);
+  return token;
+}
 
 /* --- Get a token string from a given authorization header --- */
 // See https://shopify.dev/apps/auth/oauth/session-tokens/getting-started#step-2-authenticate-your-requests

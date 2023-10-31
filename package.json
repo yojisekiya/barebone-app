@@ -16,6 +16,7 @@
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^3.1.2",
     "koa": "^2.14.2",
+    "koa-body": "^6.0.1",
     "koa-bodyparser": "^4.4.1",
     "koa-http-request": "^2.2.1",
     "koa-router": "^7.4.0",

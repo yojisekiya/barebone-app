@@ -13,12 +13,17 @@
     "@shopify/app-bridge-react": "^3.7.9",
     "@shopify/app-bridge-utils": "^3.5.1",
     "@shopify/polaris": "^11.13.0",
+    "@shopify/react-form": "^2.5.5",
     "@shopify/react-i18n": "^7.8.0",
-    "dotenv": "^16.3.1",
+    "@shopify/shopify-api": "^7.7.0",
+    "crypto-js": "^4.1.1",
     "jwt-decode": "^3.1.2",
+    "process": "^0.11.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.15.0"
+    "react-hook-form": "^7.46.1",
+    "react-router-dom": "^6.15.0",
+    "url": "^0.11.3"
   },
   "devDependencies": {
     "@types/react": "^18.2.21",
